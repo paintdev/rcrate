@@ -40,23 +40,6 @@ fn main() {
     let command = &args[1];
 
     match command.as_str() {
-        "init" => {
-            if args.len() < 3 {
-                println!("Error: please specify a package name for init");
-                return;
-            }
-            let package_name = &args[2];
-            let filename = "rcrate.toml";
-            let content = format!(
-                "name = \"{}\"\nversion = \"0.1.0\"\nauthors = []\n\n[dependencies]\n",
-                package_name
-            );
-
-            match fs::write(filename, content) {
-                Ok(_) => println!("Initialized package '{}' and created {}", package_name, filename),
-                Err(e) => println!("Error creating configuration file: {}", e),
-            }
-        }
         "install" => {
             if args.len() < 3 {
                 println!("Error: please specify a package");
@@ -149,9 +132,6 @@ fn main() {
             } else {
                 println!("Package '{}' not found in installation path.", package_name);
             }
-        }
-        "login" => {
-            println!("No login required for static GitHub registry index.");
         }
         "publish" => {
             println!("To publish, commit and push your package JSON file to your GitHub index repository.");
