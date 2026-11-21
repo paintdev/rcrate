@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read version from Cargo.toml
+        id: meta
+        shell: pwsh
+        run: |
+          $match = Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
+          if (-not $match) { throw "Could not find version in Cargo.toml" }
+          $version = $match.Matches[0].Groups[1].Value
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Detected version: $version"
+
+      - name: Check if release already exists
+        id: check
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${{ steps.meta.outputs.version }}" --repo "${{ github.repository }}" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            "exists=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host "Release ${{ steps.meta.outputs.version }} already exists; skipping."
+          } else {
+            "exists=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+
+      - name: Install stable Rust toolchain
+        if: steps.check.outputs.exists == 'false'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run tests
+        if: steps.check.outputs.exists == 'false'
+        run: cargo test
+
+      - name: Build release binary
+        if: steps.check.outputs.exists == 'false'
+        run: cargo build --release
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.exists == 'false'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.meta.outputs.version }}" target/release/rcrate.exe `
+            --repo "${{ github.repository }}" `
+            --title "rcrate ${{ steps.meta.outputs.version }}" `
+            --generate-notes
