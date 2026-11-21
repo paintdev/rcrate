@@ -32,13 +32,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          $ErrorActionPreference = 'Continue'
           gh release view "${{ steps.meta.outputs.version }}" --repo "${{ github.repository }}" 2>$null
           if ($LASTEXITCODE -eq 0) {
             "exists=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             Write-Host "Release ${{ steps.meta.outputs.version }} already exists; skipping."
           } else {
             "exists=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host "Release ${{ steps.meta.outputs.version }} does not exist yet; proceeding to build."
           }
+          exit 0
 
       - name: Install stable Rust toolchain
         if: steps.check.outputs.exists == 'false'
